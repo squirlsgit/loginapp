@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+  <head>
+
+    <!-- Libraries -->
+    <script src="node_modules/core-js/client/shim.min.js"></script>
+    <script src="node_modules/zone.js/dist/zone.js"></script>
+    <script src="node_modules/reflect-metadata/Reflect.js"></script>
+    <script src="node_modules/systemjs/dist/system.src.js"></script>
+    <!-- Stylesheet -->
+    <link rel="stylesheet" type="text/css" href="resources/vendor/semantic.min.css">
+    <link rel="stylesheet" type="text/css" href="styles.css">
+  </head>
+  <body>
+    <!-- Configure System.js, our module loader -->
+    <script src="resources/systemjs.config.js"></script>
+    <script>
+      System.import('app.js')
+            .then(null, console.error.bind(console));
+    </script>
+
+    <!-- Menu Bar -->
+      <view></view> <!-- <--- Our app loads here! -->
+      <spare></spare>
+      </div>
+    </div>
+
+  </body>
+</html>
