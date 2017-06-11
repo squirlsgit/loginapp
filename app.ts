@@ -195,7 +195,7 @@ class="ui error message">password is required</div>
          if( !this.pw.valid || !this.name.valid) {
            this.errorlogin = true;
 
-           //this is here for testing. delete if not testing.
+           //this is here for testing. delete if not testing. or have alternative
            this.count += 1; if(this.count > 2){this.locked = true; console.log("account" + this.locked);}
          }
          else { console.log('you submitted value:', form);  console.log("attempting to log in");
@@ -230,7 +230,7 @@ class="ui error message">password is required</div>
      }
    }
    resetpage() { //PLUG:: resets session information
-     this.http.get('reset.php');
+     this.http.get('server/reset.php');
      this.status = "login";
      this.display();
 console.log(this.status);

@@ -93,7 +93,7 @@ System.register(['@angular/core', '@angular/platform-browser', "@angular/platfor
                     this.hassubmitted = true;
                     if (!this.pw.valid || !this.name.valid) {
                         this.errorlogin = true;
-                        //this is here for testing. delete if not testing.
+                        //this is here for testing. delete if not testing. or have alternative
                         this.count += 1;
                         if (this.count > 2) {
                             this.locked = true;
@@ -139,7 +139,7 @@ System.register(['@angular/core', '@angular/platform-browser', "@angular/platfor
                     }
                 };
                 view.prototype.resetpage = function () {
-                    this.http.get('reset.php');
+                    this.http.get('server/reset.php');
                     this.status = "login";
                     this.display();
                     console.log(this.status);
