@@ -81,6 +81,7 @@ System.register(['@angular/core', '@angular/platform-browser', "@angular/platfor
                     this.userforchange = this.mainForm.controls['userforchange'];
                     this.pwchange = this.mainForm.controls['pwchange'];
                     this.pwchangeconf = this.mainForm.controls['pwchangeconf'];
+                    //PLUG:: says if user is logged in then (from islog) then redirect to home.
                     this.http.get('register_session_permissions.php')
                         .map(function (res) { return res.json(); })
                         .subscribe(function (data) { if (data.islog) {
@@ -102,6 +103,7 @@ System.register(['@angular/core', '@angular/platform-browser', "@angular/platfor
                     else {
                         console.log('you submitted value:', form);
                         console.log("attempting to log in");
+                        //PLUG:: islog: boolean, if true user is logged in. count is a count of failed user attempts for same username. locked is if account username is locked.
                         this.http.post('server/confirmlogin_infoand_changesessioninfo.php', new loginInfo(this.name.value, this.pw.value))
                             .map(function (res) { return res.json(); })
                             .subscribe(function (data) { _this.status = data.islog, _this.locked = data.locked, _this.count = data.count; }, function (err) { console.log(err); });
