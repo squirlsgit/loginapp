@@ -7,8 +7,9 @@ Component, NgModule,TemplateRef, ViewChild
 import { BrowserModule } from '@angular/platform-browser';
 import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators, AbstractControl }   from '@angular/forms';
-import { Response, Http, HttpModule} from '@angular/http';
+import { Response, Http, HttpModule, URLSearchParams, Headers, RequestOptions} from '@angular/http';
 import 'rxjs/add/operator/map';
+import 'rxjs/Rx';
 
 
 function nameValidator(control: FormControl): { [s: string]: boolean}{
@@ -73,7 +74,7 @@ export class userInfo {
 
  <!-- Request Password Template -->
  <template #request>
- <form class="ui large form segment" [formGroup]="mainForm" (ngSubmit) ="resetpage()" >
+ <form class="ui large form segment" [formGroup]="mainForm" (ngSubmit) ="resetpage()"  accept-charset="ISO-8859-1">
  <h3 class="ui header">Request Password</h3>
  <!-- email -->
  <div class="field"
@@ -163,6 +164,9 @@ class="ui error message">password is required</div>
    count: number;
    locked: boolean;
    hassubmitted: boolean = false;
+   islog: boolean = false;
+   response: any;
+
    constructor(fb: FormBuilder, public http: Http) {
      this.count = 0;
      this.loading = true;
@@ -185,7 +189,7 @@ class="ui error message">password is required</div>
       this.pwchange = this.mainForm.controls['pwchange'];
       this.pwchangeconf = this.mainForm.controls['pwchangeconf'];
       //PLUG:: says if user is logged in then (from islog) then redirect to home.
-      this.http.get('register_session_permissions.php')
+      this.http.get('server/register_session_permissions.php')
      .map((res:Response) => res.json())
        .subscribe(data => {if(data.islog){this.status = "home";}});
 
@@ -194,22 +198,36 @@ class="ui error message">password is required</div>
      this.hassubmitted = true;
          if( !this.pw.valid || !this.name.valid) {
            this.errorlogin = true;
-
            //this is here for testing. delete if not testing. or have alternative
            this.count += 1; if(this.count > 2){this.locked = true; console.log("account" + this.locked);}
          }
-         else { console.log('you submitted value:', form);  console.log("attempting to log in");
+         else { console.log('you submitted value:', form);  console.log("attempting to log in"); console.log("Name, value pair: " + this.name.value + ", " + this.pw.value);
          //PLUG:: islog: boolean, if true user is logged in. count is a count of failed user attempts for same username. locked is if account username is locked.
-         this.http.post('server/confirmlogin_infoand_changesessioninfo.php', new loginInfo(this.name.value,this.pw.value))
-        .map((res:Response) => res.json())
-          .subscribe(data => {this.status = data.islog, this.locked = data.locked, this.count = data.count}, err => {console.log(err);});
+         let headers = new Headers({ 'Content-Type': 'application/json'});
+         let options = new RequestOptions({ headers: headers});
+
+
+         this.http.post('server/confirmlogin_infoand_changesessioninfo.php',JSON.stringify({
+           user: this.name.value,
+           pw: this.pw.value
+         }), options).map((res:Response) => res.json())
+          .subscribe(data => {
+            this.islog = data.islog,
+            this.locked = data.locked,
+            this.count = data.count,
+            console.log("user password that were submitted: " + data.user + ", " + data.pw + ", islog: " + data.islog)
+
+          }, err => {console.log(err);});
           this.hassubmitted = false;
-           this.status = "home";
-           this.display();
-         if(this.status && !this.locked) {console.log("successful login")} else {
+          if(this.islog){this.status = "home";}
+           console.log(this.islog);
+         if( this.islog && !this.locked) {console.log("successful login")
+       this.display();}
+       else {
            this.errorlogin = true;
            //testing:
            this.count += 1;
+           console.log("error with loggin in.");
          }
 
        }
@@ -232,6 +250,8 @@ class="ui error message">password is required</div>
    resetpage() { //PLUG:: resets session information
      this.http.get('server/reset.php');
      this.status = "login";
+     this.errorlogin = false;
+     this.islog = false;
      this.display();
 console.log(this.status);
 console.log(this.displayPage);
