@@ -1,4 +1,4 @@
-System.register(['@angular/core', '@angular/platform-browser', "@angular/platform-browser-dynamic", '@angular/forms', '@angular/http', 'rxjs/add/operator/map', 'rxjs/Rx'], function(exports_1, context_1) {
+System.register(['@angular/core', '@angular/platform-browser', "@angular/platform-browser-dynamic", '@angular/forms', '@angular/http', 'rxjs/add/operator/map'], function(exports_1, context_1) {
     "use strict";
     var __moduleName = context_1 && context_1.id;
     var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
@@ -39,8 +39,7 @@ System.register(['@angular/core', '@angular/platform-browser', "@angular/platfor
             function (http_1_1) {
                 http_1 = http_1_1;
             },
-            function (_1) {},
-            function (_2) {}],
+            function (_1) {}],
         execute: function() {
             loginInfo = (function () {
                 function loginInfo(name, pw) {
@@ -60,14 +59,14 @@ System.register(['@angular/core', '@angular/platform-browser', "@angular/platfor
             exports_1("userInfo", userInfo);
             view = (function () {
                 function view(fb, http) {
-                    var _this = this;
                     this.http = http;
+                    this.count = 0;
                     this.hassubmitted = false;
                     this.islog = false;
-                    this.count = 0;
                     this.loading = true;
                     this.errorlogin = false;
                     /**/
+                    this.locked = false;
                     this.status = "login";
                     this.mainForm = fb.group({
                         'pw': ['', forms_1.Validators.compose([forms_1.Validators.required, pwValidator])],
@@ -84,22 +83,19 @@ System.register(['@angular/core', '@angular/platform-browser', "@angular/platfor
                     this.pwchange = this.mainForm.controls['pwchange'];
                     this.pwchangeconf = this.mainForm.controls['pwchangeconf'];
                     //PLUG:: says if user is logged in then (from islog) then redirect to home.
-                    this.http.get('server/register_session_permissions.php')
-                        .map(function (res) { return res.json(); })
-                        .subscribe(function (data) { if (data.islog) {
-                        _this.status = "home";
-                    } });
                 }
                 view.prototype.onSubmit = function (form) {
                     var _this = this;
                     this.hassubmitted = true;
                     if (!this.pw.valid || !this.name.valid) {
                         this.errorlogin = true;
+                        console.log(this.pw.valid + ", " + this.name.valid);
                         //this is here for testing. delete if not testing. or have alternative
                         this.count += 1;
+                        console.log("account" + this.locked + ", attempt: " + this.count);
                         if (this.count > 2) {
                             this.locked = true;
-                            console.log("account" + this.locked);
+                            console.log("account" + this.locked + ", attempt: " + this.count);
                         }
                     }
                     else {
@@ -109,31 +105,38 @@ System.register(['@angular/core', '@angular/platform-browser', "@angular/platfor
                         //PLUG:: islog: boolean, if true user is logged in. count is a count of failed user attempts for same username. locked is if account username is locked.
                         var headers = new http_1.Headers({ 'Content-Type': 'application/json' });
                         var options = new http_1.RequestOptions({ headers: headers });
-                        Observable.forkJoin(this.http.post('server/confirmlogin_infoand_changesessioninfo.php', JSON.stringify({
+                        this.http.post('server/confirmlogin_infoand_changesessioninfo.php', JSON.stringify({
                             user: this.name.value,
                             pw: this.pw.value
-                        }), options).map(function (res) { return res.json(); }))
+                        }), options).map(function (res) { return res.json(); })
                             .subscribe(function (data) {
                             _this.islog = data.islog,
                                 _this.locked = data.locked,
-                                _this.count = data.count,
-                                console.log("user password that were submitted: " + data.user + ", " + data.pw + ", islog: " + data.islog);
+                                //this.count = data.count,
+                                _this.checkLogin(_this.islog),
+                                _this.display(),
+                                console.log("user password that were submitted: " + data.user + ", " + data.pw + ", and returns islog: " + data.islog);
                         }, function (err) { console.log(err); });
-                        this.hassubmitted = false;
-                        if (this.islog) {
-                            this.status = "home";
+                    }
+                };
+                view.prototype.checkLogin = function (data_islog) {
+                    if (data_islog) {
+                        this.status = "home";
+                        console.log("successful login");
+                        return true;
+                    }
+                    else {
+                        this.errorlogin = true;
+                        this.hassubmitted = true;
+                        //this is here for testing. delete if not testing. or have alternative
+                        this.count += 1;
+                        console.log("attempt: " + this.count);
+                        console.log("Username Password were not accepted.");
+                        if (this.count > 2) {
+                            this.locked = true;
+                            console.log("account: " + this.locked + ", attempt: " + this.count);
                         }
-                        console.log(this.islog);
-                        if (this.islog && !this.locked) {
-                            console.log("successful login");
-                            this.display();
-                        }
-                        else {
-                            this.errorlogin = true;
-                            //testing:
-                            this.count += 1;
-                            console.log("error with loggin in.");
-                        }
+                        return false;
                     }
                 };
                 view.prototype.display = function () {
@@ -144,6 +147,7 @@ System.register(['@angular/core', '@angular/platform-browser', "@angular/platfor
                     else if (this.status === "home") {
                         console.log(this.status);
                         this.displayPage = this.displayHome;
+                        this.hassubmitted = false;
                     }
                     else if (this.status === "reset") {
                         console.log(this.status);
@@ -196,7 +200,7 @@ System.register(['@angular/core', '@angular/platform-browser', "@angular/platfor
                 view = __decorate([
                     core_1.Component({
                         selector: 'view',
-                        template: "\n\n<!-- Switch Template -->\n <template [ngTemplateOutlet] = \"displayPage\"> </template>\n <!-- Change Password Template -->\n <template #reset>\n <form class=\"ui large form segment\" [formGroup]=\"mainForm\" (ngSubmit) =\"resetpage()\" >\n <h3 class=\"ui header\">Change Password</h3>\n  <!-- name -->\n <div class=\"field\"\n [class.error]=\"!userforchange.valid && userforchange.touched\">\n <label for=\"name\">Name:</label>\n <input name=\"name\" placeholder = \"foo\" #rname [formControl]=\"mainForm.controls['userforchange']\">\n  <!-- pw -->\n </div>\n <div class=\"field\" [class.error]=\"!pwchange.valid && pwchange.touched\">\n <label for=\"pw\">Password:</label>\n <input name=\"pw\" placeholder = \"Foobartimes8!\" #rpw [formControl]=\"mainForm.controls['pwchange']\">\n </div>\n  <!-- pwconfirmation -->\n <div class=\"field\" [class.error]=\"!pwchangeconf.valid && pwchangeconf.touched\">\n <label for=\"pwconf\">Password:</label>\n <input name=\"pwconf\" placeholder = \"Foobartimes8!\" #rrpw [formControl]=\"mainForm.controls['pwchangeconf']\">\n </div>\n <button type=\"submit\"\n class=\"ui positive center floated button\" >\n Send\n </button>\n </form>\n <button id = \"Reset\" (click)=\"resetpage()\">Reset</button>\n </template>\n\n <!-- Request Password Template -->\n <template #request>\n <form class=\"ui large form segment\" [formGroup]=\"mainForm\" (ngSubmit) =\"resetpage()\"  accept-charset=\"ISO-8859-1\">\n <h3 class=\"ui header\">Request Password</h3>\n <!-- email -->\n <div class=\"field\"\n [class.error]=\"!email.valid && email.touched\">\n <label for=\"email\">Email:</label>\n <input name=\"email\" placeholder = \"foo\" #uemail [formControl]=\"mainForm.controls['email']\">\n </div>\n <button type=\"submit\"\n class=\"ui positive center floated button\" >\n Send\n </button>\n </form>\n <button id = \"Reset\" (click)=\"resetpage()\">Reset</button>\n </template>\n\n\n<!-- Home Screen Record Browse Admin -->\n<template #home>\n<button id = \"Record\">Record</button>\n<button id = \"Browse\">Browse</button>\n<button id = \"Admin\">Admin</button>\n<button id = \"Reset\" (click)=\"resetpage()\">Reset</button>\n</template>\n\n\n<!-- login Screen -->\n <template #login>\n <div *ngIf=\"errorlogin\"\n class=\"ui error message\">Username and Password combination was incorrect.\n\n <!--Testing functionality of locked Account.\n Designed to include a custom validation that builds a list of names that are locked for the user  -->\n <div *ngIf=\"!locked && !name.hasError('required') && hassubmitted\">This is attempt {{ count + 1 }} of 3 for {{uname.value}}</div>\n <div *ngIf=\"locked && !name.hasError('required') && hassubmitted\">Account has been locked.</div></div>\n <div *ngIf=\"name.hasError('invalidname') && hassubmitted\"\n class=\"ui error message\">name is invalid</div>\n <div *ngIf=\"name.hasError('required') && hassubmitted\"\n class=\"ui error message\">name is required</div>\n <div *ngIf=\"pw.hasError('invalidpw') && hassubmitted && !pw.hasError('required')\"\nclass=\"ui error message\">password is invalid.</div>\n<div *ngIf=\"pw.hasError('required') && hassubmitted \"\nclass=\"ui error message\">password is required</div>\n\n  <form class=\"ui large form segment\" [formGroup]=\"mainForm\" (ngSubmit) =\"onSubmit(mainForm.value)\" >\n  <h3 class=\"ui header\">Login</h3>\n  <div class=\"field\"\n  [class.error]=\"!name.valid && name.touched && hassubmitted\">\n  <label for=\"name\">Name:</label>\n  <input name=\"name\" placeholder = \"foo\" #uname [formControl]=\"mainForm.controls['name']\">\n   <!-- changed -->\n  </div>\n  <div class=\"field\" [class.error]=\"!pw.valid && pw.touched && hassubmitted\">\n  <label for=\"pw\">Password:</label>\n  <input name=\"pw\" placeholder = \"Foobartimes8!\" #upw [formControl]=\"mainForm.controls['pw']\"> <!-- changed -->\n  </div>\n  <button  type=\"submit\"\n class=\"ui positive center floated button\" >\n  Send\n  </button>\n  </form>\n\n<button id = \"Reset\" (click)=\"resetpage()\">Reset</button>\n <button id = \"requestpw\"(click) = \"requestpw()\"> Request Password </button>\n <button id = \"resetpw\"(click) = \"resetpw()\"> Reset Password </button>\n </template>\n "
+                        template: "\n\n<!-- Switch Template -->\n <template [ngTemplateOutlet] = \"displayPage\"> </template>\n <!-- Change Password Template -->\n <template #reset>\n <form class=\"ui large form segment\" [formGroup]=\"mainForm\" (ngSubmit) =\"resetpage()\" >\n <h3 class=\"ui header\">Change Password</h3>\n  <!-- name -->\n <div class=\"field\"\n [class.error]=\"!userforchange.valid && userforchange.touched\">\n <label for=\"name\">Name:</label>\n <input name=\"name\" placeholder = \"foo\" #rname [formControl]=\"mainForm.controls['userforchange']\">\n  <!-- pw -->\n </div>\n <div class=\"field\" [class.error]=\"!pwchange.valid && pwchange.touched\">\n <label for=\"pw\">Password:</label>\n <input name=\"pw\" placeholder = \"Foobartimes8!\" #rpw [formControl]=\"mainForm.controls['pwchange']\">\n </div>\n  <!-- pwconfirmation -->\n <div class=\"field\" [class.error]=\"!pwchangeconf.valid && pwchangeconf.touched\">\n <label for=\"pwconf\">Password:</label>\n <input name=\"pwconf\" placeholder = \"Foobartimes8!\" #rrpw [formControl]=\"mainForm.controls['pwchangeconf']\">\n </div>\n <button type=\"submit\"\n class=\"ui positive center floated button\" >\n Send\n </button>\n </form>\n <button id = \"Reset\" (click)=\"resetpage()\">Reset</button>\n </template>\n\n <!-- Request Password Template -->\n <template #request>\n <form class=\"ui large form segment\" [formGroup]=\"mainForm\" (ngSubmit) =\"resetpage()\"  accept-charset=\"ISO-8859-1\">\n <h3 class=\"ui header\">Request Password</h3>\n <!-- email -->\n <div class=\"field\"\n [class.error]=\"!email.valid && email.touched\">\n <label for=\"email\">Email:</label>\n <input name=\"email\" placeholder = \"foo\" #uemail [formControl]=\"mainForm.controls['email']\">\n </div>\n <button type=\"submit\"\n class=\"ui positive center floated button\" >\n Send\n </button>\n </form>\n <button id = \"Reset\" (click)=\"resetpage()\">Reset</button>\n </template>\n\n\n<!-- Home Screen Record Browse Admin -->\n<template #home>\n<button id = \"Record\">Record</button>\n<button id = \"Browse\">Browse</button>\n<button id = \"Admin\">Admin</button>\n<button id = \"Reset\" (click)=\"resetpage()\">Logout</button>\n</template>\n\n\n<!-- login Screen -->\n <template #login>\n <div *ngIf=\"errorlogin\" class=\"ui error message\">Username and Password combination was incorrect.</div>\n <!--Testing functionality of locked Account.\n Designed to include a custom validation that builds a list of names that are locked for the user  -->\n <div *ngIf=\"!locked && hassubmitted\" class=\"ui error message\">This is attempt {{ count }} of 3 for {{ uname.value }}</div>\n <div *ngIf=\"locked  && hassubmitted\" class=\"ui error message\">Account has been locked.</div>\n <div *ngIf=\"name.hasError('invalidname') && hassubmitted\"class=\"ui error message\">name is invalid</div>\n <div *ngIf=\"name.hasError('required') && hassubmitted\"\n class=\"ui error message\">name is required</div>\n <div *ngIf=\"pw.hasError('invalidpw') && hassubmitted && !pw.hasError('required')\"\nclass=\"ui error message\">password is invalid.</div>\n<div *ngIf=\"pw.hasError('required') && hassubmitted \"\nclass=\"ui error message\">password is required</div>\n\n  <form class=\"ui large form segment\" [formGroup]=\"mainForm\" (ngSubmit) =\"onSubmit(mainForm.value)\" >\n  <h3 class=\"ui header\">Login</h3>\n  <div class=\"field\"\n  [class.error]=\"!name.valid && name.touched && hassubmitted\">\n  <label for=\"name\">Name:</label>\n  <input name=\"name\" placeholder = \"foo\" #uname [formControl]=\"mainForm.controls['name']\">\n   <!-- changed -->\n  </div>\n  <div class=\"field\" [class.error]=\"!pw.valid && pw.touched && hassubmitted\">\n  <label for=\"pw\">Password:</label>\n  <input name=\"pw\" placeholder = \"Foobartimes8!\" #upw [formControl]=\"mainForm.controls['pw']\"> <!-- changed -->\n  </div>\n  <button  type=\"submit\"\n class=\"ui positive center floated button\" >\n  Send\n  </button>\n  </form>\n <button id = \"requestpw\"(click) = \"requestpw()\"> Reset Password </button>\n <button id = \"resetpw\"(click) = \"resetpw()\"> Request an Account </button>\n </template>\n "
                     }), 
                     __metadata('design:paramtypes', [forms_1.FormBuilder, http_1.Http])
                 ], view);

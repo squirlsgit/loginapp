@@ -16,6 +16,6 @@ if( isset($POST['user']) && isset($POST['pw'] )){
   }
 }
 else {
-  echo json_encode(["islog" => false,'user' => "error", 'pw' => "error"]; //post not set
+  echo json_encode(["islog" => false,'user' => "error", 'pw' => "error"]); //post not set
 }
  ?>

@@ -9,7 +9,6 @@ import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators, AbstractControl }   from '@angular/forms';
 import { Response, Http, HttpModule, URLSearchParams, Headers, RequestOptions} from '@angular/http';
 import 'rxjs/add/operator/map';
-import 'rxjs/Rx';
 
 
 function nameValidator(control: FormControl): { [s: string]: boolean}{
@@ -41,8 +40,7 @@ export class userInfo {
 @Component({
  selector: 'view',
  template: `
-
-<!-- Switch Template -->
+ <!-- Switch Template -->
  <template [ngTemplateOutlet] = "displayPage"> </template>
  <!-- Change Password Template -->
  <template #reset>
@@ -96,21 +94,18 @@ export class userInfo {
 <button id = "Record">Record</button>
 <button id = "Browse">Browse</button>
 <button id = "Admin">Admin</button>
-<button id = "Reset" (click)="resetpage()">Reset</button>
+<button id = "Reset" (click)="resetpage()">Logout</button>
 </template>
 
 
 <!-- login Screen -->
  <template #login>
- <div *ngIf="errorlogin"
- class="ui error message">Username and Password combination was incorrect.
-
+ <div *ngIf="errorlogin" class="ui error message">Username and Password combination was incorrect.</div>
  <!--Testing functionality of locked Account.
  Designed to include a custom validation that builds a list of names that are locked for the user  -->
- <div *ngIf="!locked && !name.hasError('required') && hassubmitted">This is attempt {{ count + 1 }} of 3 for {{uname.value}}</div>
- <div *ngIf="locked && !name.hasError('required') && hassubmitted">Account has been locked.</div></div>
- <div *ngIf="name.hasError('invalidname') && hassubmitted"
- class="ui error message">name is invalid</div>
+ <div *ngIf="!locked && hassubmitted" class="ui error message">This is attempt {{ count }} of 3 for {{ uname.value }}</div>
+ <div *ngIf="locked  && hassubmitted" class="ui error message">Account has been locked.</div>
+ <div *ngIf="name.hasError('invalidname') && hassubmitted"class="ui error message">name is invalid</div>
  <div *ngIf="name.hasError('required') && hassubmitted"
  class="ui error message">name is required</div>
  <div *ngIf="pw.hasError('invalidpw') && hassubmitted && !pw.hasError('required')"
@@ -135,16 +130,14 @@ class="ui error message">password is required</div>
   Send
   </button>
   </form>
-
-<button id = "Reset" (click)="resetpage()">Reset</button>
- <button id = "requestpw"(click) = "requestpw()"> Request Password </button>
- <button id = "resetpw"(click) = "resetpw()"> Reset Password </button>
+ <button id = "requestpw"(click) = "requestpw()"> Reset Password </button>
+ <button id = "resetpw"(click) = "resetpw()"> Request an Account </button>
  </template>
  `
  })
  export class view {
    @ViewChild('login') displayLogin: TemplateRef<any>;
-   @ViewChild('home') displayHome: TemplateRef<any>;
+     @ViewChild('home') displayHome: TemplateRef<any>;
    @ViewChild('reset') displayReset: TemplateRef<any>;
    @ViewChild('request') displayRequest: TemplateRef<any>;
    @ViewChild('login') displayPage: TemplateRef<any>;
@@ -161,17 +154,17 @@ class="ui error message">password is required</div>
    logjson: Object;
    status: String;
    errorlogin: boolean;
-   count: number;
+   count: number = 0;
    locked: boolean;
    hassubmitted: boolean = false;
    islog: boolean = false;
    response: any;
 
    constructor(fb: FormBuilder, public http: Http) {
-     this.count = 0;
      this.loading = true;
      this.errorlogin = false;
      /**/
+     this.locked = false;
       this.status = "login";
 
       this.mainForm = fb.group({
@@ -189,24 +182,23 @@ class="ui error message">password is required</div>
       this.pwchange = this.mainForm.controls['pwchange'];
       this.pwchangeconf = this.mainForm.controls['pwchangeconf'];
       //PLUG:: says if user is logged in then (from islog) then redirect to home.
-      this.http.get('server/register_session_permissions.php')
-     .map((res:Response) => res.json())
-       .subscribe(data => {if(data.islog){this.status = "home";}});
+
 
    }
    onSubmit(form: any): void {
      this.hassubmitted = true;
          if( !this.pw.valid || !this.name.valid) {
            this.errorlogin = true;
+           console.log(this.pw.valid + ", " + this.name.valid)
            //this is here for testing. delete if not testing. or have alternative
-           this.count += 1; if(this.count > 2){this.locked = true; console.log("account" + this.locked);}
+           this.count += 1;
+           console.log("account" + this.locked  + ", attempt: " + this.count);
+           if(this.count > 2){this.locked = true; console.log("account" + this.locked + ", attempt: " + this.count);}
          }
          else { console.log('you submitted value:', form);  console.log("attempting to log in"); console.log("Name, value pair: " + this.name.value + ", " + this.pw.value);
          //PLUG:: islog: boolean, if true user is logged in. count is a count of failed user attempts for same username. locked is if account username is locked.
          let headers = new Headers({ 'Content-Type': 'application/json'});
          let options = new RequestOptions({ headers: headers});
-
-
          this.http.post('server/confirmlogin_infoand_changesessioninfo.php',JSON.stringify({
            user: this.name.value,
            pw: this.pw.value
@@ -214,31 +206,41 @@ class="ui error message">password is required</div>
           .subscribe(data => {
             this.islog = data.islog,
             this.locked = data.locked,
-            this.count = data.count,
-            console.log("user password that were submitted: " + data.user + ", " + data.pw + ", islog: " + data.islog)
-
+            //this.count = data.count,
+            this.checkLogin(this.islog),
+            this.display(),
+            console.log("user password that were submitted: " + data.user + ", " + data.pw + ", and returns islog: " + data.islog)
           }, err => {console.log(err);});
-          this.hassubmitted = false;
-          if(this.islog){this.status = "home";}
-           console.log(this.islog);
-         if( this.islog && !this.locked) {console.log("successful login")
-       this.display();}
-       else {
-           this.errorlogin = true;
-           //testing:
-           this.count += 1;
-           console.log("error with loggin in.");
-         }
-
        }
 
-   }
+
+}
+
+checkLogin(data_islog: boolean): boolean {
+  if(data_islog){
+    this.status= "home";
+    console.log("successful login");
+    return true;
+  }
+  else {
+      this.errorlogin = true;
+      this.hassubmitted = true;
+      //this is here for testing. delete if not testing. or have alternative
+      this.count += 1;
+      console.log("attempt: " + this.count);
+        console.log("Username Password were not accepted.");
+      if(this.count > 2){this.locked = true; console.log("account: " + this.locked  + ", attempt: " + this.count);}
+      return false;
+    }
+
+}
    display() {
      if(this.status === "login"){console.log(this.status);
      this.displayPage = this.displayLogin;
    }
      else if (this.status === "home"){console.log(this.status);
        this.displayPage =  this.displayHome;
+       this.hassubmitted = false;
      }
      else if (this.status === "reset"){console.log(this.status);
        this.displayPage =  this.displayReset;
