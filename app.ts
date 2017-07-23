@@ -1,6 +1,4 @@
-/**
-2 * A basic hello-world Angular 2 app
-3 */
+
 import {
 Component, NgModule,TemplateRef, ViewChild
 } from '@angular/core';
@@ -9,6 +7,72 @@ import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
 import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators, AbstractControl }   from '@angular/forms';
 import { Response, Http, HttpModule, URLSearchParams, Headers, RequestOptions} from '@angular/http';
 import 'rxjs/add/operator/map';
+import {Injectable} from "@angular/core";
+interface Scripts {
+   name: string;
+   src: string;
+}
+export const ScriptStore: Scripts[] = [
+   {name: 'webrtcadapter', src: 'https://webrtc.github.io/adapter/adapter-latest.js'},
+   {name: 'mediarecorder', src: 'js/main.js'}
+];
+//<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+//<script src="js/main.js"></script>
+declare var document: any;
+
+@Injectable()
+export class ScriptService {
+
+public scripts: any = {};
+
+constructor() {
+    ScriptStore.forEach((script: any) => {
+        this.scripts[script.name] = {
+            loaded: false,
+            src: script.src
+        };
+    });
+}
+
+load(...scripts: string[]) {
+    var promises: any[] = [];
+    scripts.forEach((script) => promises.push(this.loadScript(script)));
+    return Promise.all(promises);
+}
+
+loadScript(name: string) {
+    return new Promise((resolve, reject) => {
+        //resolve if already loaded
+        if (this.scripts[name].loaded) {
+            resolve({script: name, loaded: true, status: 'Already Loaded'});
+        }
+        else {
+            //load script
+            let script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = this.scripts[name].src;
+            if (script.readyState) {  //IE
+                script.onreadystatechange = () => {
+                    if (script.readyState === "loaded" || script.readyState === "complete") {
+                        script.onreadystatechange = null;
+                        this.scripts[name].loaded = true;
+                        resolve({script: name, loaded: true, status: 'Loaded'});
+                    }
+                };
+            } else {  //Others
+                script.onload = () => {
+                    this.scripts[name].loaded = true;
+                    resolve({script: name, loaded: true, status: 'Loaded'});
+                };
+            }
+            script.onerror = (error: any) => resolve({script: name, loaded: false, status: 'Loaded'});
+            document.getElementsByTagName('head')[0].appendChild(script);
+        }
+    });
+}
+
+}
+
 
 
 function nameValidator(control: FormControl): { [s: string]: boolean}{
@@ -21,6 +85,8 @@ function pwValidator(control: FormControl): { [s: string]: boolean}{
     return {invalidpw:true};
   }
 }
+
+
 export class loginInfo {
   pw: String;
   name: String;
@@ -38,6 +104,7 @@ export class userInfo {
   }
 }
 @Component({
+  providers: [ScriptService],
  selector: 'view',
  template: `
  <!-- Switch Template -->
@@ -91,9 +158,8 @@ export class userInfo {
 
 <!-- Home Screen Record Browse Admin -->
 <template #home>
-<button id = "Record">Record</button>
-<button id = "Browse">Browse</button>
-<button id = "Admin">Admin</button>
+<button id = "Browse">Browse Video Library</button>
+<button id = "Record" (click) = "startRecording()">Record</button>
 <button id = "Reset" (click)="resetpage()">Logout</button>
 </template>
 
@@ -133,14 +199,33 @@ class="ui error message">password is required</div>
  <button id = "requestpw"(click) = "requestpw()"> Reset Password </button>
  <button id = "resetpw"(click) = "resetpw()"> Request an Account </button>
  </template>
+
+ <template #record>
+ <button (click) = "toHome()">Exit</button>
+  <div id="main" align="center" >
+  <div id="container">
+    <h1>powered by fidiyo</h1>
+    <video id="gum" autoplay muted hidden></video>
+    <video id="recorded" autoplay loop hidden></video>
+    <div>
+      <button id="record" disabled>Start Recording</button>
+      <button id="play" disabled>Review</button>
+      <button id="download" disabled>Save file</button>
+      <button id="send" disabled>Send file</button>
+    </div>
+  </div>
+  </div>
+<script src="js/main.js"></script>
+ </template>
  `
  })
  export class view {
    @ViewChild('login') displayLogin: TemplateRef<any>;
-     @ViewChild('home') displayHome: TemplateRef<any>;
+   @ViewChild('home') displayHome: TemplateRef<any>;
    @ViewChild('reset') displayReset: TemplateRef<any>;
    @ViewChild('request') displayRequest: TemplateRef<any>;
    @ViewChild('login') displayPage: TemplateRef<any>;
+   @ViewChild('record') displayRecord: TemplateRef<any>;
    mainForm: FormGroup;
    requestForm: FormGroup;
    resetForm: FormGroup;
@@ -160,7 +245,7 @@ class="ui error message">password is required</div>
    islog: boolean = false;
    response: any;
 
-   constructor(fb: FormBuilder, public http: Http) {
+   constructor(fb: FormBuilder, public http: Http, public script: ScriptService) {
      this.loading = true;
      this.errorlogin = false;
      /**/
@@ -186,7 +271,7 @@ class="ui error message">password is required</div>
 
    }
    onSubmit(form: any): void {
-     this.hassubmitted = true;
+
          if( !this.pw.valid || !this.name.valid) {
            this.errorlogin = true;
            console.log(this.pw.valid + ", " + this.name.valid)
@@ -194,6 +279,7 @@ class="ui error message">password is required</div>
            this.count += 1;
            console.log("account" + this.locked  + ", attempt: " + this.count);
            if(this.count > 2){this.locked = true; console.log("account" + this.locked + ", attempt: " + this.count);}
+           this.hassubmitted = true;
          }
          else { console.log('you submitted value:', form);  console.log("attempting to log in"); console.log("Name, value pair: " + this.name.value + ", " + this.pw.value);
          //PLUG:: islog: boolean, if true user is logged in. count is a count of failed user attempts for same username. locked is if account username is locked.
@@ -209,6 +295,7 @@ class="ui error message">password is required</div>
             //this.count = data.count,
             this.checkLogin(this.islog),
             this.display(),
+            this.hassubmitted = true,
             console.log("user password that were submitted: " + data.user + ", " + data.pw + ", and returns islog: " + data.islog)
           }, err => {console.log(err);});
        }
@@ -248,6 +335,9 @@ checkLogin(data_islog: boolean): boolean {
      else if (this.status === "request"){console.log(this.status);
        this.displayPage =  this.displayRequest;
      }
+     else if (this.status === "record"){
+       this.displayPage = this.displayRecord;
+     }
    }
    resetpage() { //PLUG:: resets session information
      this.http.get('server/reset.php');
@@ -269,7 +359,18 @@ console.log(this.status);
      this.status = "reset";
      this.display();
    }
+   startRecording(){
+     this.status = "record";
+     this.display();
+     this.script.load('mediarecorder', 'webrtcadapter').then(data => {
+      console.log('script loaded ', data);
+      }).catch(error => console.log(error));
 
+    }
+    toHome(){
+      this.status = "home";
+      this.display();
+    }
  }
 
 
