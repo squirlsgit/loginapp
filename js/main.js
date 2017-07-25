@@ -10,7 +10,9 @@ var recordButton = document.querySelector('button#record');
 var mediaRecorder;
 var recordedBlobs;
 var sourceBuffer;
+var videoData;
 
+var xhr = new XMLHttpRequest();
 var isSecureOrigin = location.protocol === 'https:' ||
 location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 if (!isSecureOrigin) {
@@ -72,6 +74,18 @@ function download() {
 }
 
 function send() {
+  videoData = new FormData();
+  var sendblob = new Blob(recordedBlobs, {type: 'video/webm'});
+  videoData.append('video', sendblob);
+  xhr.open("POST", 'server/SaveVideo.php', true);
+  xhr.onreadystatechange = function() {
+      if(xhr.readyState == 4 && xhr.status == 200) {
+          var return_data = xhr.response;
+          console.log(return_data);
+      }
+  };
+  xhr.send(videoData);
+  console.log("processing...");
   window.location.href = "send.html";
 }
 function toggleRecording() {

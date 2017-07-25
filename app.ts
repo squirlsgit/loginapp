@@ -1,6 +1,6 @@
 
 import {
-Component, NgModule,TemplateRef, ViewChild
+Component, NgModule,TemplateRef, ViewChild, ViewContainerRef
 } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { platformBrowserDynamic } from "@angular/platform-browser-dynamic";
@@ -8,20 +8,21 @@ import { FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators, A
 import { Response, Http, HttpModule, URLSearchParams, Headers, RequestOptions} from '@angular/http';
 import 'rxjs/add/operator/map';
 import {Injectable} from "@angular/core";
-interface Scripts {
+
+declare var document: any;
+
+
+ interface Scripts {
    name: string;
    src: string;
 }
-export const ScriptStore: Scripts[] = [
+ const ScriptStore: Scripts[] = [
    {name: 'webrtcadapter', src: 'https://webrtc.github.io/adapter/adapter-latest.js'},
    {name: 'mediarecorder', src: 'js/main.js'}
 ];
-//<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
-//<script src="js/main.js"></script>
-declare var document: any;
 
 @Injectable()
-export class ScriptService {
+ class ScriptService {
 
 public scripts: any = {};
 
@@ -73,8 +74,11 @@ loadScript(name: string) {
 
 }
 
-
-
+function emailValidator(control: FormControl): { [s: string]: boolean}{
+  if(!control.value.match(/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/)) {
+    return {invalidemail:true};
+  }
+}
 function nameValidator(control: FormControl): { [s: string]: boolean}{
   if (!control.value.match(/.?/)) { //fill in regex if want conditions on name. presently means no or some characters.
     return {invalidname:true};
@@ -108,29 +112,43 @@ export class userInfo {
  selector: 'view',
  template: `
  <!-- Switch Template -->
- <template [ngTemplateOutlet] = "displayPage"> </template>
+
  <!-- Change Password Template -->
- <template #reset>
+ <template #newaccount>
+ <div *ngIf="newemail.hasError('invalidemail')">requested email is invalid</div>
+ <div *ngIf="newuser.hasError('required')"
+ >name is required</div>
+ <div *ngIf="newpw.hasError('invalidpw') && !newpw.hasError('required')" >password is invalid.</div>
+ <div *ngIf="newpw.hasError('required')">password is required</div>
+<div *ngIf="(newpw.value !== newpwconf.value)" >passwords do not match</div>
+
+
  <form class="ui large form segment" [formGroup]="mainForm" (ngSubmit) ="resetpage()" >
- <h3 class="ui header">Change Password</h3>
+ <h3 >Request Account</h3>
   <!-- name -->
- <div class="field"
- [class.error]="!userforchange.valid && userforchange.touched">
+
+ <div class="field">
  <label for="name">Name:</label>
- <input name="name" placeholder = "foo" #rname [formControl]="mainForm.controls['userforchange']">
-  <!-- pw -->
+ <input name="name" placeholder = "foo" #rname [formControl]="mainForm.controls['newuser']">
  </div>
- <div class="field" [class.error]="!pwchange.valid && pwchange.touched">
+
+  <!-- email -->
+  <div class="field">
+  <label for="email">Email:</label>
+  <input name="email" placeholder = "foo@foo.com" #nemail [formControl]="mainForm.controls['newemail']">
+  </div>
+
+   <!-- pw -->
+ <div class="field" >
  <label for="pw">Password:</label>
- <input name="pw" placeholder = "Foobartimes8!" #rpw [formControl]="mainForm.controls['pwchange']">
+ <input type="password" name="pw" #rpw [formControl]="mainForm.controls['newpw']">
  </div>
   <!-- pwconfirmation -->
- <div class="field" [class.error]="!pwchangeconf.valid && pwchangeconf.touched">
- <label for="pwconf">Password:</label>
- <input name="pwconf" placeholder = "Foobartimes8!" #rrpw [formControl]="mainForm.controls['pwchangeconf']">
+ <div class="field">
+ <label for="pwconf">Confirm Password:</label>
+ <input type="password" name="pwconf" #rrpw [formControl]="mainForm.controls['newpwconf']">
  </div>
- <button type="submit"
- class="ui positive center floated button" >
+ <button type="submit" >
  Send
  </button>
  </form>
@@ -139,28 +157,36 @@ export class userInfo {
 
  <!-- Request Password Template -->
  <template #request>
- <form class="ui large form segment" [formGroup]="mainForm" (ngSubmit) ="resetpage()"  accept-charset="ISO-8859-1">
+ <div *ngIf="email.hasError('invalidemail')">name is invalid</div>
+<!-- request pw form -->
+ <form class="ui large form segment" [formGroup]="mainForm" (ngSubmit) ="resetpage()" >
  <h3 class="ui header">Request Password</h3>
  <!-- email -->
- <div class="field"
- [class.error]="!email.valid && email.touched">
+ <div class="field">
  <label for="email">Email:</label>
  <input name="email" placeholder = "foo" #uemail [formControl]="mainForm.controls['email']">
  </div>
- <button type="submit"
- class="ui positive center floated button" >
+ <button type="submit">
  Send
  </button>
  </form>
  <button id = "Reset" (click)="resetpage()">Reset</button>
  </template>
 
-
+<template #library>
+<button (click)="toHome()"> back </button>
+<table>
+  <tr *ngFor="let video of videos"  >
+    <button (click)="addordelete(video)" [style.background-color] = "video.color" ><td >Video: {{ video.url }}</td> <td> {{ video.path }} </td> <td> {{video.time}}</td></button>
+  </tr>
+</table>
+<button (click)="sendVideos()">send</button>
+</template>
 <!-- Home Screen Record Browse Admin -->
 <template #home>
-<button id = "Browse">Browse Video Library</button>
+<button id = "Browse" (click) = "browseLibrary()">Browse Video Library</button>
 <button id = "Record" (click) = "startRecording()">Record</button>
-<button id = "Reset" (click)="resetpage()">Logout</button>
+<button id = "Reset" (click)="resetpage(mainForm.value)">Logout</button>
 </template>
 
 
@@ -191,8 +217,7 @@ class="ui error message">password is required</div>
   <label for="pw">Password:</label>
   <input name="pw" placeholder = "Foobartimes8!" #upw [formControl]="mainForm.controls['pw']"> <!-- changed -->
   </div>
-  <button  type="submit"
- class="ui positive center floated button" >
+  <button  type="submit" >
   Send
   </button>
   </form>
@@ -222,19 +247,20 @@ class="ui error message">password is required</div>
  export class view {
    @ViewChild('login') displayLogin: TemplateRef<any>;
    @ViewChild('home') displayHome: TemplateRef<any>;
-   @ViewChild('reset') displayReset: TemplateRef<any>;
+   @ViewChild('newaccount') displayReset: TemplateRef<any>;
    @ViewChild('request') displayRequest: TemplateRef<any>;
-   @ViewChild('login') displayPage: TemplateRef<any>;
    @ViewChild('record') displayRecord: TemplateRef<any>;
+   @ViewChild('library') displayLibrary: TemplateRef<any>;
    mainForm: FormGroup;
    requestForm: FormGroup;
    resetForm: FormGroup;
    pw: AbstractControl;
    name: AbstractControl;
    email: AbstractControl;
-   userforchange: AbstractControl;
-   pwchange: AbstractControl;
-   pwchangeconf: AbstractControl;
+   newemail: AbstractControl;
+   newuser: AbstractControl;
+   newpw: AbstractControl;
+   newpwconf: AbstractControl;
    loading: boolean;
    logjson: Object;
    status: String;
@@ -244,34 +270,55 @@ class="ui error message">password is required</div>
    hassubmitted: boolean = false;
    islog: boolean = false;
    response: any;
+   connection: any;
+   stringResponse: String;
+   videos: Array<any>;
+   videostoSend: Array<any>;
 
-   constructor(fb: FormBuilder, public http: Http, public script: ScriptService) {
+   constructor(fb: FormBuilder, public http: Http, public script: ScriptService, private vcRef: ViewContainerRef) {
+     this.videos = [];
+     this.videostoSend = [];
      this.loading = true;
      this.errorlogin = false;
-     /**/
      this.locked = false;
-      this.status = "login";
-
       this.mainForm = fb.group({
         'pw': ['', Validators.compose([Validators.required, pwValidator])],
         'name': ['', Validators.compose([Validators.required, nameValidator])],
-          'email': ['', Validators.compose([Validators.required, nameValidator])],
-          'pwchange': ['', Validators.compose([Validators.required, pwValidator])],
-          'pwchangeconf': ['', Validators.compose([Validators.required, pwValidator])],
-          'userforchange': ['', Validators.compose([Validators.required, nameValidator])]
+          'email': ['', Validators.compose([Validators.required, emailValidator])],
+          'newemail': ['', Validators.compose([Validators.required, emailValidator])],
+          'newpw': ['', Validators.compose([Validators.required, pwValidator])],
+          'newpwconf': ['', Validators.compose([Validators.required, pwValidator])],
+          'newuser': ['', Validators.compose([Validators.required, nameValidator])]
         });
       this.pw = this.mainForm.controls['pw'];
       this.name = this.mainForm.controls['name'];
       this.email = this.mainForm.controls['email'];
-      this.userforchange = this.mainForm.controls['userforchange'];
-      this.pwchange = this.mainForm.controls['pwchange'];
-      this.pwchangeconf = this.mainForm.controls['pwchangeconf'];
-      //PLUG:: says if user is logged in then (from islog) then redirect to home.
+      this.newemail = this.mainForm.controls['newemail'];
+      this.newuser = this.mainForm.controls['newuser'];
+      this.newpw = this.mainForm.controls['newpw'];
+      this.newpwconf = this.mainForm.controls['newpwconf'];
+   }
+   ngOnInit(){
+     console.log("ngoninit is called.");
+     this.checkLogin();
+   }
+   sendVideos(){
+     this.videos.forEach(video => {
+       if(video.isSelect){console.log(video);  this.videostoSend.push(video);}
 
+     });
+     //httprequest with json, that sends the video_toSend array of videos to a dynamic page that can handle the information and
+     alert(this.videostoSend[0].path);
+   }
+   addordelete(video: any){
 
+     //console.log(video);
+     video.isSelect = !video.isSelect;
+    //   console.log(video);
+     video.isSelect? video.color = "yellow": video.color = ""
+    //   console.log(video);
    }
    onSubmit(form: any): void {
-
          if( !this.pw.valid || !this.name.valid) {
            this.errorlogin = true;
            console.log(this.pw.valid + ", " + this.name.valid)
@@ -285,7 +332,7 @@ class="ui error message">password is required</div>
          //PLUG:: islog: boolean, if true user is logged in. count is a count of failed user attempts for same username. locked is if account username is locked.
          let headers = new Headers({ 'Content-Type': 'application/json'});
          let options = new RequestOptions({ headers: headers});
-         this.http.post('server/confirmlogin_infoand_changesessioninfo.php',JSON.stringify({
+         this.connection = this.http.post('server/confirmlogin_infoand_changesessioninfo.php',JSON.stringify({
            user: this.name.value,
            pw: this.pw.value
          }), options).map((res:Response) => res.json())
@@ -293,20 +340,28 @@ class="ui error message">password is required</div>
             this.islog = data.islog,
             this.locked = data.locked,
             //this.count = data.count,
-            this.checkLogin(this.islog),
+            this.returnLogin(this.islog),
             this.display(),
-            this.hassubmitted = true,
             console.log("user password that were submitted: " + data.user + ", " + data.pw + ", and returns islog: " + data.islog)
           }, err => {console.log(err);});
        }
-
-
 }
-
-checkLogin(data_islog: boolean): boolean {
+browseLibrary(){
+  this.vcRef.clear();
+  this.vcRef.createEmbeddedView(this.displayLibrary);
+  this.http.request('server/videolibrary.json').subscribe((res: Response) => {this.videos = res.json().videos});
+}
+checkLogin() {
+  this.vcRef.clear();
+  this.http.get('server/register_session_permissions.php').map((res:Response) => res.json()).subscribe(data =>
+  {this.islog = data.islog, console.log(this.islog),
+  this.islog?     this.vcRef.createEmbeddedView(this.displayHome): this.vcRef.createEmbeddedView(this.displayLogin)}, err => {console.log(err);});
+}
+returnLogin(data_islog: boolean): boolean {
   if(data_islog){
     this.status= "home";
     console.log("successful login");
+
     return true;
   }
   else {
@@ -322,41 +377,52 @@ checkLogin(data_islog: boolean): boolean {
 
 }
    display() {
-     if(this.status === "login"){console.log(this.status);
-     this.displayPage = this.displayLogin;
+     if(this.status === "login" &&  !this.islog){console.log(this.status);
+      this.vcRef.clear();
+      this.vcRef.createEmbeddedView(this.displayLogin);
    }
-     else if (this.status === "home"){console.log(this.status);
-       this.displayPage =  this.displayHome;
+     else if (this.status === "home" && this.islog){console.log(this.status);
+       this.vcRef.clear();
+       this.vcRef.createEmbeddedView(this.displayHome);
        this.hassubmitted = false;
      }
-     else if (this.status === "reset"){console.log(this.status);
-       this.displayPage =  this.displayReset;
+     else if (this.status === "newaccount" && !this.islog){console.log(this.status);
+       this.vcRef.clear();
+       this.vcRef.createEmbeddedView(this.displayReset);
      }
-     else if (this.status === "request"){console.log(this.status);
-       this.displayPage =  this.displayRequest;
+     else if (this.status === "request" && !this.islog){console.log(this.status);
+       this.vcRef.clear();
+       this.vcRef.createEmbeddedView(this.displayRequest);
      }
-     else if (this.status === "record"){
-       this.displayPage = this.displayRecord;
+     else if (this.status === "record" && this.islog){
+       this.vcRef.clear();
+       this.vcRef.createEmbeddedView(this.displayRecord);
+     }
+     else if (this.status === "library" && this.islog ){
+       this.vcRef.clear();
+       this.vcRef.createEmbeddedView(this.displayLibrary);
      }
    }
-   resetpage() { //PLUG:: resets session information
-     this.http.get('server/reset.php');
-     this.status = "login";
-     this.errorlogin = false;
-     this.islog = false;
-     this.display();
-console.log(this.status);
-console.log(this.displayPage);
+   resetpage(form: any) { //PLUG:: resets session information
+     console.log('logging out');
+     this.http.get('server/reset.php').map((res: Response) => res.text()).subscribe(data => {
+       console.log(data),
+       this.checkLogin(),
+       this.islog? this.status = "home": this.status = "login",
+       this.errorlogin = false,
+       this.islog = false,
+       this.count = 0,
+       this.hassubmitted = false
+       console.log(this.status),
+       console.log(this.displayLogin)
+     });
    }
    requestpw(){
      this.status = "request";
      this.display();
-     console.log(this.displayPage);
-
-console.log(this.status);
    }
    resetpw(){
-     this.status = "reset";
+     this.status = "newaccount";
      this.display();
    }
    startRecording(){
@@ -371,6 +437,7 @@ console.log(this.status);
       this.status = "home";
       this.display();
     }
+
  }
 
 
