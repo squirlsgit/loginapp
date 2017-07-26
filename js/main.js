@@ -1,18 +1,26 @@
 'use strict';
 var gumVideo = document.querySelector('video#gum');
 var recordedVideo = document.querySelector('video#recorded');
+var imageCapture = document.querySelector('canvas#canvas');
+var ctx = imageCapture.getContext('2d');
+var image = document.querySelector('img#captured');
+
+gumVideo.src = '';
+recordedVideo.src = '';
 
 var playButton = document.querySelector('button#play');
+var captureButton = document.querySelector('button#capture');
 var downloadButton = document.querySelector('button#download');
-var sendButton = document.querySelector('button#send')
+var saveimgButton = document.querySelector('button#saveimg');
+var sendButton = document.querySelector('button#send');
 var recordButton = document.querySelector('button#record');
+var exitButton = document.querySelector('button#exit');
 
 var mediaRecorder;
 var recordedBlobs;
 var sourceBuffer;
-var videoData;
+var image_captured = false;
 
-var xhr = new XMLHttpRequest();
 var isSecureOrigin = location.protocol === 'https:' ||
 location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 if (!isSecureOrigin) {
@@ -27,19 +35,48 @@ var constraints = {
 };
 
 recordButton.onclick = toggleRecording;
+captureButton.onclick = snapshot;
 playButton.onclick = play;
 downloadButton.onclick = download;
 sendButton.onclick =  send;
+saveimgButton.onclick = saveImage;
+exitButton.onclick = exit;
 
+function exit() {
+  if(stream){
+
+    stream.getAudioTracks()[0].stop();
+stream.getVideoTracks()[0].stop();
+
+}
+}
+function snapshot() {
+  if(stream) {
+    imageCapture.width = gumVideo.videoWidth;
+    imageCapture.height = gumVideo.videoHeight;
+    console.log(imageCapture.width + ", " + imageCapture.height);
+    image.width = gumVideo.videoWidth;
+    image.height = gumVideo.videoHeight;
+    console.log(image.width + ", " + image.height);
+    ctx.drawImage(gumVideo,0,0,image.width,image.height);
+    image.src = imageCapture.toDataURL('image/webp');
+    saveimgButton.disabled = false;
+    sendButton.disabled = false;
+    image_captured = true;
+  }
+}
 function handleSuccess(stream) {
   recordButton.disabled = false;
+  captureButton.disabled = false;
   console.log('getUserMedia() got stream: ', stream);
   window.stream = stream;
   gumVideo.hidden=false;
   if (window.URL) {
-    gumVideo.src = window.URL.createObjectURL(stream);
+    console.log('window url returned valid');
+    gumVideo.srcObject = stream;
+
   } else {
-    gumVideo.src = stream;
+    console.log('window url returned invalid');
   }
 }
 
@@ -57,7 +94,14 @@ function play() {
   recordedVideo.src = window.URL.createObjectURL(superBuffer);
 }
 
-
+function saveImage() {
+  var a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = image.src;
+  a.download = 'test.webp';
+  document.body.appendChild(a);
+  a.click();
+}
 function download() {
   var blob = new Blob(recordedBlobs, {type: 'video/webm'});
   var url = window.URL.createObjectURL(blob);
@@ -74,9 +118,14 @@ function download() {
 }
 
 function send() {
-  videoData = new FormData();
-  var sendblob = new Blob(recordedBlobs, {type: 'video/webm'});
-  videoData.append('video', sendblob);
+  var xhr = new XMLHttpRequest();
+  var videoData = new FormData();
+  if(recordedBlobs){console.log('recordedblobs exists');var sendblob = new Blob(recordedBlobs, {type: 'video/webm'});
+  videoData.append('video', sendblob);}
+  if(image_captured){
+    console.log('captured image had an src.');
+    videoData.append('image', image.src);
+}
   xhr.open("POST", 'server/SaveVideo.php', true);
   xhr.onreadystatechange = function() {
       if(xhr.readyState == 4 && xhr.status == 200) {
@@ -86,7 +135,7 @@ function send() {
   };
   xhr.send(videoData);
   console.log("processing...");
-  window.location.href = "send.html";
+//  window.location.href = "send.html";
 }
 function toggleRecording() {
   gumVideo.hidden=false;
@@ -99,6 +148,7 @@ function toggleRecording() {
     playButton.disabled = false;
     downloadButton.disabled = false;
     sendButton.disabled = false;
+    captureButton.disabled = false;
   }
 }
 
@@ -128,6 +178,7 @@ function startRecording() {
   console.log('Created MediaRecorder', mediaRecorder, 'with options', options);
   recordButton.textContent = 'Stop Recording';
   playButton.disabled = true;
+  captureButton.disabled = true;
   downloadButton.disabled = true;
   sendButton.disabled = true;
   mediaRecorder.onstop = handleStop;

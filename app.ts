@@ -36,28 +36,36 @@ constructor() {
 }
 
 load(...scripts: string[]) {
+    var index = 0;
     var promises: any[] = [];
-    scripts.forEach((script) => promises.push(this.loadScript(script)));
+    scripts.forEach((script) => {index++,promises.push(this.loadScript(script,true,index))});
     return Promise.all(promises);
 }
 
-loadScript(name: string) {
+loadScript(name: string, attempt: boolean, index: number) {
+
     return new Promise((resolve, reject) => {
         //resolve if already loaded
         if (this.scripts[name].loaded) {
             resolve({script: name, loaded: true, status: 'Already Loaded'});
+            var scriptelement = document.getElementById('mainjs'+index);
+            scriptelement.parentNode.removeChild(scriptelement);
+            console.log('script removed for ' + index);
+            var attempt = false;
         }
-        else {
             //load script
+            console.log('adding script for ' + index);
             let script = document.createElement('script');
             script.type = 'text/javascript';
             script.src = this.scripts[name].src;
+            script.id = "mainjs"+index;
             if (script.readyState) {  //IE
                 script.onreadystatechange = () => {
                     if (script.readyState === "loaded" || script.readyState === "complete") {
                         script.onreadystatechange = null;
                         this.scripts[name].loaded = true;
                         resolve({script: name, loaded: true, status: 'Loaded'});
+                        attempt = false;
                     }
                 };
             } else {  //Others
@@ -68,7 +76,7 @@ loadScript(name: string) {
             }
             script.onerror = (error: any) => resolve({script: name, loaded: false, status: 'Loaded'});
             document.getElementsByTagName('head')[0].appendChild(script);
-        }
+
     });
 }
 
@@ -226,21 +234,26 @@ class="ui error message">password is required</div>
  </template>
 
  <template #record>
- <button (click) = "toHome()">Exit</button>
-  <div id="main" align="center" >
-  <div id="container">
+ <div id = "dashboard" *ngIf = 'refresh_switch'>
+ <button id='exit' (click)="toHome()" >Exit</button>
+  <div id='main' align='center' >
+  <div id='container'>
     <h1>powered by fidiyo</h1>
-    <video id="gum" autoplay muted hidden></video>
-    <video id="recorded" autoplay loop hidden></video>
+    <video muted id='gum' autoplay hidden></video>
+    <video  id='recorded' autoplay loop hidden></video>
+    <canvas id='canvas' style='display:none;'></canvas>
+    <img id = 'captured' src =''>
     <div>
-      <button id="record" disabled>Start Recording</button>
-      <button id="play" disabled>Review</button>
-      <button id="download" disabled>Save file</button>
-      <button id="send" disabled>Send file</button>
+      <button id='record' disabled>Start Recording</button>
+      <button id='capture' disabled>Take a Picture</button>
+      <button id='play' disabled>Review</button>
+      <button id='download' disabled>Save file</button>
+      <button id='saveimg' disabled>Save Image</button>
+      <button id='send' disabled>Send file</button>
     </div>
   </div>
   </div>
-<script src="js/main.js"></script>
+  </div>
  </template>
  `
  })
@@ -263,7 +276,7 @@ class="ui error message">password is required</div>
    newpwconf: AbstractControl;
    loading: boolean;
    logjson: Object;
-   status: String;
+   status: string;
    errorlogin: boolean;
    count: number = 0;
    locked: boolean;
@@ -271,11 +284,12 @@ class="ui error message">password is required</div>
    islog: boolean = false;
    response: any;
    connection: any;
-   stringResponse: String;
+   stringResponse: string;
    videos: Array<any>;
    videostoSend: Array<any>;
-
+   refresh_switch: boolean;
    constructor(fb: FormBuilder, public http: Http, public script: ScriptService, private vcRef: ViewContainerRef) {
+     this.refresh_switch = true;
      this.videos = [];
      this.videostoSend = [];
      this.loading = true;
@@ -397,6 +411,10 @@ returnLogin(data_islog: boolean): boolean {
      else if (this.status === "record" && this.islog){
        this.vcRef.clear();
        this.vcRef.createEmbeddedView(this.displayRecord);
+       this.refresh_switch = false;
+       console.log(this.refresh_switch);
+       this.refresh_switch = true;
+       console.log(this.refresh_switch);
      }
      else if (this.status === "library" && this.islog ){
        this.vcRef.clear();
